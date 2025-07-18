@@ -74,18 +74,18 @@ create_admin_user() {
     local username="${1:-devuser}"
     local password="${2:-$(openssl rand -base64 12)}"
     
-    echo -e "${BLUE}👤 Creating admin user: $username...${NC}"
+    echo -e "${BLUE}👤 Creating admin user: $username...${NC}" >&2
     
     # Check if user already exists
     if id "$username" &>/dev/null; then
-        print_warning "User $username already exists"
+        echo -e "${YELLOW}⚠️  User $username already exists${NC}" >&2
         read -p "Do you want to continue with existing user? (y/N): " continue_choice
         case $continue_choice in
             [Yy]|[Yy][Ee][Ss]) 
-                echo "Continuing with existing user..."
+                echo "Continuing with existing user..." >&2
                 ;;
             *) 
-                print_error "Please choose a different username or remove the existing user."
+                echo -e "${RED}❌ Please choose a different username or remove the existing user.${NC}" >&2
                 exit 1
                 ;;
         esac
@@ -93,7 +93,7 @@ create_admin_user() {
         # Create user
         useradd -m -s /bin/bash "$username"
         echo "$username:$password" | chpasswd
-        print_success "User $username created"
+        echo -e "${GREEN}✅ User $username created${NC}" >&2
     fi
     
     # Add to sudo group
@@ -107,14 +107,15 @@ create_admin_user() {
         chmod 440 "/etc/sudoers.d/$username"
     fi
     
-    print_success "Admin user configured with sudo access"
+    echo -e "${GREEN}✅ Admin user configured with sudo access${NC}" >&2
     
     # Show password if generated
     if [[ -z "$2" ]]; then
-        echo -e "${YELLOW}Generated password for $username: $password${NC}"
-        echo -e "${YELLOW}Please save this password securely!${NC}"
+        echo -e "${YELLOW}Generated password for $username: $password${NC}" >&2
+        echo -e "${YELLOW}Please save this password securely!${NC}" >&2
     fi
     
+    # Output only the credentials to stdout for capture
     echo "$username:$password"
 }
 
