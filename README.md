@@ -110,7 +110,15 @@ system:
 ./setup.sh         # Run interactive setup
 ./install.sh       # Install environment
 ./status.sh        # Check installation status
+./show-passwords.sh # Show user passwords
 ./uninstall.sh     # Remove installation
+
+# Or use make commands
+make setup         # Run interactive setup
+make install       # Install environment
+make status        # Check installation status
+make passwords     # Show user passwords
+make uninstall     # Remove installation
 
 # User shortcuts (after installation)
 workspace          # Go to department workspace
@@ -126,6 +134,49 @@ dps                # Docker ps
 - **Proper Permissions**: Restricted access to sensitive files
 - **Group-based Access**: Department team groups
 - **Password Storage**: Secure location with limited access
+
+## 🔑 Password Management
+
+### Viewing User Passwords
+
+After installation, user passwords are stored securely in:
+```
+/opt/your-department-name/user-passwords.txt
+```
+
+**Method 1: Using the script**
+```bash
+./show-passwords.sh
+# or
+make passwords
+```
+
+**Method 2: Direct file access**
+```bash
+sudo cat /opt/your-department-name/user-passwords.txt
+```
+
+### Changing Passwords
+
+**Change your own password:**
+```bash
+passwd
+```
+
+**Change another user's password (requires sudo):**
+```bash
+sudo passwd username
+```
+
+### Security Recommendations
+
+1. **Change default passwords immediately** after first login
+2. Use strong, unique passwords for each account
+3. Consider using SSH keys instead of passwords
+4. Remove or secure the password file after initial setup:
+   ```bash
+   sudo rm /opt/your-department-name/user-passwords.txt
+   ```
 
 ## 📄 License
 

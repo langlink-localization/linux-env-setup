@@ -9,6 +9,7 @@ help:
 	@echo "  make setup      - Run interactive configuration setup"
 	@echo "  make install    - Install the environment based on configuration"
 	@echo "  make status     - Check installation status"
+	@echo "  make passwords  - Show user passwords"
 	@echo "  make uninstall  - Remove the installation"
 	@echo "  make clean      - Remove configuration files"
 	@echo "  make test       - Run basic tests"
@@ -37,6 +38,12 @@ status:
 	@echo "Checking installation status..."
 	@chmod +x status.sh
 	@./status.sh
+
+# Show passwords
+passwords:
+	@echo "Showing user passwords..."
+	@chmod +x show-passwords.sh
+	@./show-passwords.sh
 
 # Uninstall
 uninstall:
