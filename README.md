@@ -10,6 +10,7 @@ A modern, script-based Linux development environment setup tool that allows you 
 - **Flexible User Management**: Add multiple users with individual configurations
 - **Shell Selection**: Choose which users get Zsh with Oh My Zsh and Powerlevel10k
 - **Docker Integration**: Selectively add users to Docker group
+- **Tailscale VPN**: Optional zero-config VPN for secure remote access
 - **Global Tools**: Install Node.js and Python globally for all users
 - **Secure Setup**: Generate secure passwords and proper permissions
 - **Cross-Platform**: Supports Ubuntu, Debian, CentOS, RHEL, Fedora, and derivatives
@@ -64,12 +65,13 @@ chmod +x install.sh
 - **Node.js**: Latest LTS version (if selected)
 - **Python**: Latest stable version (if selected)
 - **Docker**: Latest stable version (if selected)
+- **Tailscale**: Zero-config VPN (if selected)
 
 ### For Zsh Users
 - **Oh My Zsh**: Popular Zsh framework
 - **Powerlevel10k**: Beautiful and fast prompt
 - **Plugins**: autosuggestions, syntax highlighting, completions
-- **Aliases**: Git, Docker, and system shortcuts
+- **Aliases**: Git, Docker, Tailscale, and system shortcuts
 - **Functions**: Project management utilities
 
 ### Directory Structure
@@ -101,6 +103,7 @@ system:
   install_node: true
   install_python: true
   install_docker: true
+  install_tailscale: true
 ```
 
 ## 🛠️ Available Commands
@@ -126,6 +129,8 @@ projects           # Go to projects directory
 newproject <name>  # Create new project
 gs                 # Git status
 dps                # Docker ps
+ts                 # Tailscale command (if installed)
+tsstatus           # Tailscale status (if installed)
 ```
 
 ## 🔒 Security Features
@@ -177,6 +182,60 @@ sudo passwd username
    ```bash
    sudo rm /opt/your-department-name/user-passwords.txt
    ```
+
+## 🔗 Tailscale VPN Integration
+
+### What is Tailscale?
+Tailscale is a zero-config VPN that creates a secure network between your devices using WireGuard technology. It's perfect for:
+- Remote access to your servers
+- Secure team collaboration
+- Accessing development environments from anywhere
+
+### Setup After Installation
+
+**1. Connect to your Tailscale network:**
+```bash
+sudo tailscale up
+```
+
+**2. (Optional) Enable SSH access via Tailscale:**
+```bash
+sudo tailscale up --ssh
+```
+
+**3. (Optional) Enable subnet routes:**
+```bash
+sudo tailscale up --advertise-routes=192.168.1.0/24
+```
+
+### Useful Tailscale Commands
+
+The installation adds convenient aliases for all users:
+
+```bash
+ts              # Tailscale command (sudo tailscale)
+tsstatus        # Check Tailscale status
+tsip            # Get your Tailscale IP
+tsping <device> # Ping another device on your network
+tsup            # Connect to Tailscale
+tsdown          # Disconnect from Tailscale
+```
+
+### Getting Started with Tailscale
+
+1. **Create a Tailscale account** at https://tailscale.com/
+2. **Run the connection command**: `sudo tailscale up`
+3. **Authenticate in your browser** when prompted
+4. **Check your status**: `tsstatus`
+5. **Get your IP**: `tsip`
+
+### Benefits for Development Teams
+
+- **Secure access** to development servers from anywhere
+- **No port forwarding** or complex firewall rules needed
+- **Access control** through the Tailscale admin panel
+- **Automatic encryption** of all traffic
+- **Works across different networks** (home, office, mobile)
 
 ## 📄 License
 

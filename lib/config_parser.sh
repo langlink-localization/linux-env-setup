@@ -8,6 +8,7 @@ declare -g DEPARTMENT_NAME=""
 declare -g INSTALL_NODE=false
 declare -g INSTALL_PYTHON=false
 declare -g INSTALL_DOCKER=false
+declare -g INSTALL_TAILSCALE=false
 declare -g -a USERS=()
 declare -g -A USER_ZSH=()
 declare -g -A USER_DOCKER=()
@@ -29,6 +30,7 @@ parse_config() {
     declare -g INSTALL_NODE=false
     declare -g INSTALL_PYTHON=false
     declare -g INSTALL_DOCKER=false
+    declare -g INSTALL_TAILSCALE=false
     
     local in_users_section=false
     local in_system_section=false
@@ -81,6 +83,8 @@ parse_config() {
                 INSTALL_PYTHON="${BASH_REMATCH[1]}"
             elif [[ "$line" =~ ^install_docker:[[:space:]]*([a-zA-Z]+) ]]; then
                 INSTALL_DOCKER="${BASH_REMATCH[1]}"
+            elif [[ "$line" =~ ^install_tailscale:[[:space:]]*([a-zA-Z]+) ]]; then
+                INSTALL_TAILSCALE="${BASH_REMATCH[1]}"
             fi
         fi
     done < "$config_file"
@@ -109,6 +113,7 @@ print_config() {
     echo "Install Node: $INSTALL_NODE"
     echo "Install Python: $INSTALL_PYTHON"
     echo "Install Docker: $INSTALL_DOCKER"
+    echo "Install Tailscale: $INSTALL_TAILSCALE"
     echo "Users:"
     for user in "${USERS[@]}"; do
         echo "  - $user (zsh: ${USER_ZSH[$user]}, docker: ${USER_DOCKER[$user]})"

@@ -111,6 +111,7 @@ run_installation() {
         "packages"
         "department"
         "docker"
+        "tailscale"
         "zsh"
     )
     
@@ -138,6 +139,7 @@ display_completion_message() {
     echo "• Department directory structure"
     echo "• User accounts with configured shells"
     echo "• Development tools (Node.js, Python, Docker)"
+    echo "• Tailscale VPN (if selected)"
     echo "• Zsh with Oh My Zsh and Powerlevel10k"
     echo "• Useful aliases and functions"
     echo
@@ -148,6 +150,7 @@ display_completion_message() {
     echo "   git config --global user.email 'your.email@example.com'"
     echo "3. Users should change their default passwords"
     echo "4. Run 'p10k configure' to set up Powerlevel10k theme"
+    echo "5. If Tailscale was installed, run 'sudo tailscale up' to connect"
     echo
     echo -e "${BLUE}Quick commands to try:${NC}"
     echo "• workspace    - Go to department workspace"
@@ -155,6 +158,8 @@ display_completion_message() {
     echo "• newproject <name> - Create a new project"
     echo "• gs           - Git status"
     echo "• dps          - Docker ps"
+    echo "• ts           - Tailscale command (if installed)"
+    echo "• tsstatus     - Tailscale status (if installed)"
     echo
     
     if [[ -f "$CONFIG_FILE" ]]; then

@@ -188,6 +188,23 @@ collect_system_config() {
         esac
     done
     
+    while true; do
+        read -p "Install Tailscale? (Y/n): " tailscale_choice
+        case $tailscale_choice in
+            [Yy]|[Yy][Ee][Ss]|"") 
+                INSTALL_TAILSCALE=true
+                break
+                ;;
+            [Nn]|[Nn][Oo]) 
+                INSTALL_TAILSCALE=false
+                break
+                ;;
+            *) 
+                print_error "Please answer y or n."
+                ;;
+        esac
+    done
+    
     echo
 }
 
@@ -202,6 +219,7 @@ display_summary() {
     echo "Install Node.js: $INSTALL_NODE"
     echo "Install Python: $INSTALL_PYTHON"
     echo "Install Docker: $INSTALL_DOCKER"
+    echo "Install Tailscale: $INSTALL_TAILSCALE"
     echo
 }
 
@@ -239,6 +257,7 @@ system:
   install_node: $INSTALL_NODE
   install_python: $INSTALL_PYTHON
   install_docker: $INSTALL_DOCKER
+  install_tailscale: $INSTALL_TAILSCALE
 EOF
 
     print_success "Configuration saved to $CONFIG_FILE"

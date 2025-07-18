@@ -47,6 +47,7 @@ check_config() {
         echo "Install Node.js: $INSTALL_NODE"
         echo "Install Python: $INSTALL_PYTHON"
         echo "Install Docker: $INSTALL_DOCKER"
+        echo "Install Tailscale: $INSTALL_TAILSCALE"
     else
         print_error "Configuration file not found"
         echo "Run ./setup.sh to create configuration"
@@ -258,6 +259,33 @@ check_development_tools() {
         fi
     else
         echo "Docker installation: Skipped"
+    fi
+    
+    # Check Tailscale
+    if [[ "$INSTALL_TAILSCALE" == "true" ]]; then
+        if command -v tailscale >/dev/null 2>&1; then
+            print_success "Tailscale installed"
+            echo "  ✓ Tailscale: $(tailscale version)"
+            
+            # Check Tailscale service
+            if systemctl is-active --quiet tailscaled; then
+                echo "  ✓ Tailscale service running"
+            else
+                echo "  ✗ Tailscale service not running"
+            fi
+            
+            # Check if authenticated
+            if sudo tailscale status >/dev/null 2>&1; then
+                echo "  ✓ Tailscale authenticated"
+                echo "  ✓ Tailscale IP: $(sudo tailscale ip 2>/dev/null || echo 'N/A')"
+            else
+                echo "  ✗ Tailscale not authenticated (run 'sudo tailscale up')"
+            fi
+        else
+            print_error "Tailscale not installed"
+        fi
+    else
+        echo "Tailscale installation: Skipped"
     fi
     echo
 }
