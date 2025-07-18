@@ -20,17 +20,17 @@ A modern, script-based Linux development environment setup tool that allows you 
 
 ```bash
 # One-click deployment with default settings
-curl -fsSL https://raw.githubusercontent.com/YOUR-USERNAME/linux-env-setup/main/bootstrap.sh | bash
+curl -fsSL https://raw.githubusercontent.com/langlink-localization/linux-env-setup/master/bootstrap.sh | bash
 
 # With custom username and password
-curl -fsSL https://raw.githubusercontent.com/YOUR-USERNAME/linux-env-setup/main/bootstrap.sh | bash -s -- myuser mypassword
+curl -fsSL https://raw.githubusercontent.com/langlink-localization/linux-env-setup/master/bootstrap.sh | bash -s -- myuser mypassword
 ```
 
 ### Method 2: Existing User Setup
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR-USERNAME/linux-env-setup.git
+git clone https://github.com/langlink-localization/linux-env-setup.git
 cd linux-env-setup
 
 # Run interactive setup
@@ -44,7 +44,7 @@ cd linux-env-setup
 
 ```bash
 # 1. Clone repository
-git clone https://github.com/YOUR-USERNAME/linux-env-setup.git
+git clone https://github.com/langlink-localization/linux-env-setup.git
 cd linux-env-setup
 
 # 2. Run setup

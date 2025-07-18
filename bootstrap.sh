@@ -149,7 +149,7 @@ download_project() {
     fi
     
     # Download project
-    su - "$username" -c "cd && git clone https://github.com/YOUR-USERNAME/linux-env-setup.git"
+    su - "$username" -c "cd && git clone https://github.com/langlink-localization/linux-env-setup.git"
     
     # Make scripts executable
     chmod +x "$project_dir"/*.sh
