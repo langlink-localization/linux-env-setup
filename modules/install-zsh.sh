@@ -43,7 +43,7 @@ configure_zsh_for_user() {
     
     # Install Oh My Zsh for the user
     if [[ ! -d "$user_home/.oh-my-zsh" ]]; then
-        sudo -u "$user" sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+        sudo -u "$user" bash -c "cd '$user_home' && sh -c \"\$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)\" \"\" --unattended"
         print_success "Oh My Zsh installed for $user"
     else
         print_warning "Oh My Zsh already installed for $user"
@@ -51,7 +51,7 @@ configure_zsh_for_user() {
     
     # Install Powerlevel10k theme
     if [[ ! -d "$user_home/.oh-my-zsh/custom/themes/powerlevel10k" ]]; then
-        sudo -u "$user" git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "$user_home/.oh-my-zsh/custom/themes/powerlevel10k"
+        sudo -u "$user" bash -c "cd '$user_home' && git clone --depth=1 https://github.com/romkatv/powerlevel10k.git '$user_home/.oh-my-zsh/custom/themes/powerlevel10k'"
         print_success "Powerlevel10k installed for $user"
     else
         print_warning "Powerlevel10k already installed for $user"
@@ -61,12 +61,12 @@ configure_zsh_for_user() {
     local plugins_dir="$user_home/.oh-my-zsh/custom/plugins"
     
     if [[ ! -d "$plugins_dir/zsh-autosuggestions" ]]; then
-        sudo -u "$user" git clone https://github.com/zsh-users/zsh-autosuggestions "$plugins_dir/zsh-autosuggestions"
+        sudo -u "$user" bash -c "cd '$user_home' && git clone https://github.com/zsh-users/zsh-autosuggestions '$plugins_dir/zsh-autosuggestions'"
         print_success "zsh-autosuggestions installed for $user"
     fi
     
     if [[ ! -d "$plugins_dir/zsh-syntax-highlighting" ]]; then
-        sudo -u "$user" git clone https://github.com/zsh-users/zsh-syntax-highlighting.git "$plugins_dir/zsh-syntax-highlighting"
+        sudo -u "$user" bash -c "cd '$user_home' && git clone https://github.com/zsh-users/zsh-syntax-highlighting.git '$plugins_dir/zsh-syntax-highlighting'"
         print_success "zsh-syntax-highlighting installed for $user"
     fi
     

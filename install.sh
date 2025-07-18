@@ -119,7 +119,8 @@ run_installation() {
         
         if [[ -f "$SCRIPT_DIR/modules/install-$module.sh" ]]; then
             chmod +x "$SCRIPT_DIR/modules/install-$module.sh"
-            "$SCRIPT_DIR/modules/install-$module.sh"
+            # Run module in a clean environment with proper working directory
+            (cd "$SCRIPT_DIR" && "$SCRIPT_DIR/modules/install-$module.sh")
         else
             print_warning "Module $module not found, skipping"
         fi
