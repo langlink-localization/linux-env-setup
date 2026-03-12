@@ -3,7 +3,7 @@
 # Show User Passwords Script
 # Displays the passwords for created users
 
-set -e
+set -eo pipefail
 
 # Color definitions
 RED='\033[0;31m'
@@ -18,7 +18,7 @@ source "$SCRIPT_DIR/lib/config_parser.sh"
 
 print_header() {
     echo -e "${BLUE}================================================${NC}"
-    echo -e "${BLUE}    User Passwords Information${NC}"
+    echo -e "${BLUE}    Initial User Credentials${NC}"
     echo -e "${BLUE}================================================${NC}"
     echo
 }
@@ -39,7 +39,7 @@ main() {
     print_header
     
     # Load configuration
-    CONFIG_FILE="$HOME/.env-config.yaml"
+    CONFIG_FILE="$(resolve_config_file_path)"
     if [[ ! -f "$CONFIG_FILE" ]]; then
         print_error "Configuration file not found: $CONFIG_FILE"
         echo "Please run ./setup.sh first to create the configuration."
@@ -49,7 +49,7 @@ main() {
     parse_config "$CONFIG_FILE"
     
     if [[ -z "$DEPARTMENT_NAME" ]]; then
-        print_error "Department name not found in configuration"
+        print_error "Workspace name not found in configuration"
         exit 1
     fi
     
@@ -62,21 +62,18 @@ main() {
         exit 1
     fi
     
-    echo -e "${BLUE}Department:${NC} $DEPARTMENT_NAME"
-    echo -e "${BLUE}Password file:${NC} $password_file"
+    echo -e "${BLUE}Workspace:${NC} $DEPARTMENT_NAME"
+    echo -e "${BLUE}Credentials file:${NC} $password_file"
     echo
     
     if [[ ! -r "$password_file" ]]; then
-        print_warning "Cannot read password file directly (requires sudo)"
-        echo "To view passwords, run:"
-        echo "  sudo cat $password_file"
-        echo
-        echo "Or to view with this script:"
+        print_warning "Credentials are root-only by design"
+        echo "To view them, rerun this script with sudo:"
         echo "  sudo $0"
         exit 1
     fi
     
-    echo -e "${YELLOW}Created User Passwords:${NC}"
+    echo -e "${YELLOW}Created User Credentials:${NC}"
     echo "----------------------------------------"
     
     while IFS=':' read -r username password; do
@@ -89,7 +86,7 @@ main() {
     
     echo "----------------------------------------"
     echo -e "${RED}⚠️  IMPORTANT SECURITY NOTES:${NC}"
-    echo "1. Change these default passwords immediately after first login"
+    echo "1. Users are required to change these passwords on first login"
     echo "2. Use strong, unique passwords for each account"
     echo "3. Consider using SSH keys instead of passwords"
     echo "4. Remove or secure this password file after initial setup"

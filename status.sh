@@ -3,7 +3,7 @@
 # Status Check Script
 # Checks the installation status of the Linux environment
 
-set -e
+set -eo pipefail
 
 # Load configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -36,16 +36,20 @@ print_error() {
 }
 
 check_config() {
+    local config_file
+    config_file="$(resolve_config_file_path)"
+
     echo -e "${BLUE}📋 Configuration Status${NC}"
     echo "----------------------------------------"
     
-    if [[ -f "$HOME/.env-config.yaml" ]]; then
+    if [[ -f "$config_file" ]]; then
         print_success "Configuration file exists"
-        parse_config "$HOME/.env-config.yaml"
-        echo "Department: $DEPARTMENT_NAME"
+        parse_config "$config_file"
+        echo "Configuration file: $config_file"
+        echo "Workspace: $DEPARTMENT_NAME"
         echo "Users: ${USERS[*]}"
-        echo "Install Node.js: $INSTALL_NODE"
-        echo "Install Python: $INSTALL_PYTHON"
+        echo "Install Node.js for current operator: $INSTALL_NODE"
+        echo "Install Python for current operator: $INSTALL_PYTHON"
         echo "Install Docker: $INSTALL_DOCKER"
         echo "Install Tailscale: $INSTALL_TAILSCALE"
     else
@@ -56,14 +60,14 @@ check_config() {
 }
 
 check_department() {
-    echo -e "${BLUE}🏢 Department Status${NC}"
+    echo -e "${BLUE}🏢 Workspace Status${NC}"
     echo "----------------------------------------"
     
     if [[ -n "$DEPARTMENT_NAME" ]]; then
         local dept_dir="/opt/$DEPARTMENT_NAME"
         
         if [[ -d "$dept_dir" ]]; then
-            print_success "Department directory exists: $dept_dir"
+            print_success "Workspace directory exists: $dept_dir"
             
             # Check subdirectories
             for subdir in projects shared docs scripts archives; do
@@ -75,23 +79,23 @@ check_department() {
             done
             
             # Check info file
-            if [[ -f "$dept_dir/department-info.txt" ]]; then
-                print_success "Department info file exists"
+            if [[ -f "$dept_dir/workspace-info.txt" || -f "$dept_dir/department-info.txt" ]]; then
+                print_success "Workspace info file exists"
             else
-                print_warning "Department info file missing"
+                print_warning "Workspace info file missing"
             fi
         else
-            print_error "Department directory not found"
+            print_error "Workspace directory not found"
         fi
         
         # Check group
         if getent group "$DEPARTMENT_NAME-team" >/dev/null 2>&1; then
-            print_success "Department group exists: $DEPARTMENT_NAME-team"
+            print_success "Team group exists: $DEPARTMENT_NAME-team"
         else
-            print_error "Department group not found"
+            print_error "Team group not found"
         fi
     else
-        print_warning "No department configured"
+        print_warning "No workspace configured"
     fi
     echo
 }
@@ -124,9 +128,9 @@ check_users() {
             # Check groups
             user_groups=$(groups "$user" 2>/dev/null || echo "")
             if [[ "$user_groups" == *"$DEPARTMENT_NAME-team"* ]]; then
-                echo "  ✓ Department group membership"
+                echo "  ✓ Team group membership"
             else
-                echo "  ✗ Not in department group"
+                echo "  ✗ Not in team group"
             fi
             
             if user_has_docker "$user"; then
@@ -212,6 +216,7 @@ check_development_tools() {
     
     # Check Node.js
     if [[ "$INSTALL_NODE" == "true" ]]; then
+        echo "Node.js scope: current operator account"
         if [[ -d "$HOME/.nvm" ]]; then
             print_success "NVM installed"
             if command -v node >/dev/null 2>&1; then
@@ -228,6 +233,7 @@ check_development_tools() {
     
     # Check Python
     if [[ "$INSTALL_PYTHON" == "true" ]]; then
+        echo "Python scope: current operator account"
         if [[ -d "$HOME/.pyenv" ]]; then
             print_success "pyenv installed"
             if command -v python >/dev/null 2>&1; then

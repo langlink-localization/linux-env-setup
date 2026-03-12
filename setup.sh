@@ -1,9 +1,12 @@
 #!/bin/bash
 
 # Interactive Linux Environment Configuration Setup
-# This script allows users to configure department name, users, and system settings
+# This script allows users to configure a shared workspace, users, and system settings
 
-set -e
+set -eo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/runtime.sh"
 
 # Color definitions for better output
 RED='\033[0;31m'
@@ -13,7 +16,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration file path
-CONFIG_FILE="$HOME/.env-config.yaml"
+CONFIG_FILE="$(default_config_file_path)"
 
 print_header() {
     echo -e "${BLUE}================================================${NC}"
@@ -43,23 +46,23 @@ validate_username() {
     return 0
 }
 
-# Function to collect department information
+# Function to collect workspace information
 collect_department_info() {
-    echo -e "${BLUE}🏢 Department Configuration${NC}"
+    echo -e "${BLUE}🏢 Workspace Configuration${NC}"
     echo "=========================================="
     
     while true; do
-        read -p "Enter department name (e.g., tech-department, dev-team): " DEPARTMENT_NAME
+        read -p "Enter workspace name (e.g., eng-team, dev-lab): " DEPARTMENT_NAME
         if [[ -n "$DEPARTMENT_NAME" && "$DEPARTMENT_NAME" =~ ^[a-z][a-z0-9_-]*$ ]]; then
             break
         else
-            print_error "Invalid department name. Use lowercase letters, numbers, hyphens, and underscores only."
+            print_error "Invalid workspace name. Use lowercase letters, numbers, hyphens, and underscores only."
         fi
     done
     
     while true; do
         read -p "Enter number of users to create (1-10): " USER_COUNT
-        if [[ "$USER_COUNT" =~ ^[1-9]|10$ ]]; then
+        if [[ "$USER_COUNT" =~ ^([1-9]|10)$ ]]; then
             break
         else
             print_error "Please enter a number between 1 and 10."
@@ -138,7 +141,7 @@ collect_system_config() {
     echo "=========================================="
     
     while true; do
-        read -p "Install Node.js globally? (Y/n): " node_choice
+        read -p "Install Node.js for the current operator account? (Y/n): " node_choice
         case $node_choice in
             [Yy]|[Yy][Ee][Ss]|"") 
                 INSTALL_NODE=true
@@ -155,7 +158,7 @@ collect_system_config() {
     done
     
     while true; do
-        read -p "Install Python globally? (Y/n): " python_choice
+        read -p "Install Python for the current operator account? (Y/n): " python_choice
         case $python_choice in
             [Yy]|[Yy][Ee][Ss]|"") 
                 INSTALL_PYTHON=true
@@ -212,12 +215,12 @@ collect_system_config() {
 display_summary() {
     echo -e "${BLUE}📋 Configuration Summary${NC}"
     echo "=========================================="
-    echo "Department: $DEPARTMENT_NAME"
+    echo "Workspace: $DEPARTMENT_NAME"
     echo "Users: ${USERNAMES[*]}"
     echo "Zsh users: ${ZSH_USERS[*]:-None}"
     echo "Docker users: ${DOCKER_USERS[*]:-None}"
-    echo "Install Node.js: $INSTALL_NODE"
-    echo "Install Python: $INSTALL_PYTHON"
+    echo "Install Node.js for current operator: $INSTALL_NODE"
+    echo "Install Python for current operator: $INSTALL_PYTHON"
     echo "Install Docker: $INSTALL_DOCKER"
     echo "Install Tailscale: $INSTALL_TAILSCALE"
     echo
@@ -229,7 +232,7 @@ save_config() {
 # Linux Environment Setup Configuration
 # Generated on $(date)
 
-department_name: "$DEPARTMENT_NAME"
+workspace_name: "$DEPARTMENT_NAME"
 users:
 EOF
 
@@ -276,18 +279,25 @@ main() {
     fi
     
     # Check if configuration already exists
-    if [[ -f "$CONFIG_FILE" ]]; then
-        print_warning "Configuration file already exists at $CONFIG_FILE"
-        read -p "Do you want to overwrite it? (y/N): " overwrite
-        case $overwrite in
-            [Yy]|[Yy][Ee][Ss]) 
-                rm "$CONFIG_FILE"
-                ;;
-            *) 
-                print_error "Setup cancelled."
-                exit 1
-                ;;
-        esac
+    local existing_config_file
+    existing_config_file="$(resolve_config_file_path)"
+    if [[ -f "$existing_config_file" ]]; then
+        if [[ "$existing_config_file" == "$CONFIG_FILE" ]]; then
+            print_warning "Configuration file already exists at $CONFIG_FILE"
+            read -p "Do you want to overwrite it? (y/N): " overwrite
+            case $overwrite in
+                [Yy]|[Yy][Ee][Ss])
+                    rm "$CONFIG_FILE"
+                    ;;
+                *)
+                    print_error "Setup cancelled."
+                    exit 1
+                    ;;
+            esac
+        else
+            print_warning "Legacy configuration detected at $existing_config_file"
+            print_warning "A new configuration will be written to $CONFIG_FILE"
+        fi
     fi
     
     # Collect configuration
@@ -316,13 +326,18 @@ main() {
     
     # Save configuration
     save_config
+
+    if [[ -z "${LINUX_ENV_SETUP_CONFIG:-}" && -f "$(legacy_config_file_path)" && "$(legacy_config_file_path)" != "$CONFIG_FILE" ]]; then
+        print_warning "Legacy configuration preserved at $(legacy_config_file_path). Remove it after verifying the new config."
+    fi
     
     print_success "Setup completed successfully!"
     echo
     echo -e "${BLUE}Next steps:${NC}"
     echo "1. Run ./install.sh to install the environment"
     echo "2. Log out and back in for all changes to take effect"
-    echo "3. Configure your Git settings if needed"
+    echo "3. Review the saved configuration at $CONFIG_FILE"
+    echo "4. Configure your Git settings if needed"
     echo
 }
 

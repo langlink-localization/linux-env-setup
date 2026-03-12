@@ -3,7 +3,7 @@
 # Package Installation Module
 # Installs base packages and development tools
 
-set -e
+set -eo pipefail
 
 # Load configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -117,10 +117,15 @@ install_hack_font() {
 # Install Node.js via NVM
 install_nodejs() {
     if [[ "$INSTALL_NODE" == "true" ]]; then
-        echo -e "${BLUE}📦 Installing Node.js...${NC}"
+        local installer
+
+        echo -e "${BLUE}📦 Installing Node.js for the current operator account...${NC}"
         
         if [[ ! -d "$HOME/.nvm" ]]; then
-            curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
+            installer="$(mktemp)"
+            curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh -o "$installer"
+            bash "$installer"
+            rm -f "$installer"
             
             # Load NVM
             export NVM_DIR="$HOME/.nvm"
@@ -143,10 +148,15 @@ install_nodejs() {
 # Install Python via pyenv
 install_python() {
     if [[ "$INSTALL_PYTHON" == "true" ]]; then
-        echo -e "${BLUE}📦 Installing Python...${NC}"
+        local installer
+
+        echo -e "${BLUE}📦 Installing Python for the current operator account...${NC}"
         
         if [[ ! -d "$HOME/.pyenv" ]]; then
-            curl https://pyenv.run | bash
+            installer="$(mktemp)"
+            curl -fsSL https://pyenv.run -o "$installer"
+            bash "$installer"
+            rm -f "$installer"
             
             # Add to PATH temporarily
             export PYENV_ROOT="$HOME/.pyenv"
@@ -169,7 +179,7 @@ install_python() {
 
 main() {
     # Parse configuration
-    parse_config "$HOME/.env-config.yaml"
+    parse_config "$(resolve_config_file_path)"
     
     detect_os
     install_base_packages

@@ -3,7 +3,7 @@
 # Tailscale Installation Module
 # Installs Tailscale VPN for secure networking
 
-set -e
+set -eo pipefail
 
 # Load configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -196,7 +196,7 @@ test_tailscale() {
 
 main() {
     # Parse configuration
-    parse_config "$HOME/.env-config.yaml"
+    parse_config "$(resolve_config_file_path)"
     
     detect_os
     install_tailscale

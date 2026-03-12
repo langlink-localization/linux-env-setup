@@ -3,7 +3,7 @@
 # Zsh Configuration Module
 # Installs and configures Zsh with Oh My Zsh and Powerlevel10k
 
-set -e
+set -eo pipefail
 
 # Load configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -95,7 +95,6 @@ plugins=(
     git
     zsh-autosuggestions
     zsh-syntax-highlighting
-    zsh-completions
     docker
     docker-compose
     npm
@@ -177,7 +176,7 @@ EOF
 
 main() {
     # Parse configuration
-    parse_config "$HOME/.env-config.yaml"
+    parse_config "$(resolve_config_file_path)"
     
     echo -e "${BLUE}🐚 Configuring Zsh for users...${NC}"
     

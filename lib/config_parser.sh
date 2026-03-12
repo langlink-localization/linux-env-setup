@@ -3,7 +3,11 @@
 # Configuration Parser Library
 # Simple YAML parser for the configuration file
 
+RUNTIME_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$RUNTIME_DIR/runtime.sh"
+
 # Global variables to store configuration
+declare -g WORKSPACE_NAME=""
 declare -g DEPARTMENT_NAME=""
 declare -g INSTALL_NODE=false
 declare -g INSTALL_PYTHON=false
@@ -26,6 +30,7 @@ parse_config() {
     declare -g -a USERS=()
     declare -g -A USER_ZSH=()
     declare -g -A USER_DOCKER=()
+    declare -g WORKSPACE_NAME=""
     declare -g DEPARTMENT_NAME=""
     declare -g INSTALL_NODE=false
     declare -g INSTALL_PYTHON=false
@@ -55,9 +60,10 @@ parse_config() {
             continue
         fi
         
-        # Parse department name
-        if [[ "$line" =~ ^department_name:[[:space:]]*\"?([^\"]+)\"? ]]; then
-            DEPARTMENT_NAME="${BASH_REMATCH[1]}"
+        # Parse workspace name with backward compatibility for department_name
+        if [[ "$line" =~ ^(workspace_name|department_name):[[:space:]]*\"?([^\"]+)\"? ]]; then
+            WORKSPACE_NAME="${BASH_REMATCH[2]}"
+            DEPARTMENT_NAME="$WORKSPACE_NAME"
             continue
         fi
         
@@ -109,7 +115,7 @@ user_has_docker() {
 
 # Function to print configuration for debugging
 print_config() {
-    echo "Department: $DEPARTMENT_NAME"
+    echo "Workspace: $WORKSPACE_NAME"
     echo "Install Node: $INSTALL_NODE"
     echo "Install Python: $INSTALL_PYTHON"
     echo "Install Docker: $INSTALL_DOCKER"

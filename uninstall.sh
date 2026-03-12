@@ -3,7 +3,7 @@
 # Uninstall Script
 # Removes the Linux environment setup
 
-set -e
+set -eo pipefail
 
 # Load configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -35,16 +35,58 @@ print_error() {
     echo -e "${RED}❌ $1${NC}"
 }
 
+declare -a CREATED_USERS=()
+WORKSPACE_DIRECTORY_CREATED=false
+TEAM_GROUP_CREATED=false
+CONFIG_FILE=""
+MANIFEST_FILE=""
+
+manifest_path() {
+    if [[ -z "$DEPARTMENT_NAME" ]]; then
+        return 0
+    fi
+
+    printf '/opt/%s/.linux-env-setup-manifest\n' "$DEPARTMENT_NAME"
+}
+
+load_install_state() {
+    CONFIG_FILE="$(resolve_config_file_path)"
+
+    if [[ -f "$CONFIG_FILE" ]]; then
+        parse_config "$CONFIG_FILE"
+    else
+        print_warning "Configuration file not found. Limited uninstall available."
+    fi
+
+    MANIFEST_FILE="$(manifest_path)"
+    if [[ -n "$MANIFEST_FILE" && -f "$MANIFEST_FILE" ]]; then
+        # shellcheck disable=SC1090
+        source "$MANIFEST_FILE"
+    fi
+}
+
 confirm_uninstall() {
-    echo -e "${YELLOW}⚠️  WARNING: This will remove all users, department structure, and configurations!${NC}"
+    echo -e "${YELLOW}⚠️  WARNING: This will remove the managed workspace resources recorded by this tool.${NC}"
     echo
     
-    if [[ -n "$DEPARTMENT_NAME" ]]; then
+    if [[ -f "$MANIFEST_FILE" ]]; then
         echo "This will remove:"
-        echo "• Department directory: /opt/$DEPARTMENT_NAME"
-        echo "• Department group: $DEPARTMENT_NAME-team"
-        echo "• Users: ${USERS[*]}"
-        echo "• All user data and configurations"
+        if [[ "$WORKSPACE_DIRECTORY_CREATED" == "true" ]]; then
+            echo "• Workspace directory: /opt/$DEPARTMENT_NAME"
+        fi
+        if [[ "$TEAM_GROUP_CREATED" == "true" ]]; then
+            echo "• Team group: $DEPARTMENT_NAME-team"
+        fi
+        if [[ ${#CREATED_USERS[@]} -gt 0 ]]; then
+            echo "• Managed users: ${CREATED_USERS[*]}"
+        fi
+        echo "• Saved configuration files"
+        echo "• Operator-local NVM/pyenv tools (optional)"
+        echo
+    else
+        echo "No install manifest was found."
+        echo "This run will only remove configuration files and optional operator-local toolchains."
+        echo "User accounts, shared groups, and workspace directories will be left untouched."
         echo
     fi
     
@@ -66,8 +108,18 @@ confirm_uninstall() {
 
 remove_users() {
     echo -e "${BLUE}👥 Removing users...${NC}"
-    
-    for user in "${USERS[@]}"; do
+
+    if [[ ! -f "$MANIFEST_FILE" ]]; then
+        print_warning "Install manifest not found; skipping user removal"
+        return 0
+    fi
+
+    if [[ ${#CREATED_USERS[@]} -eq 0 ]]; then
+        print_warning "No managed users recorded in manifest"
+        return 0
+    fi
+
+    for user in "${CREATED_USERS[@]}"; do
         if id "$user" &>/dev/null; then
             # Kill any running processes for the user
             sudo pkill -u "$user" 2>/dev/null || true
@@ -83,84 +135,72 @@ remove_users() {
 }
 
 remove_department() {
-    echo -e "${BLUE}🏢 Removing department structure...${NC}"
-    
+    echo -e "${BLUE}🏢 Removing workspace structure...${NC}"
+
+    if [[ ! -f "$MANIFEST_FILE" ]]; then
+        print_warning "Install manifest not found; skipping workspace removal"
+        return 0
+    fi
+
     if [[ -n "$DEPARTMENT_NAME" ]]; then
-        # Remove department directory
-        if [[ -d "/opt/$DEPARTMENT_NAME" ]]; then
+        # Remove workspace directory only if this tool created it
+        if [[ "$WORKSPACE_DIRECTORY_CREATED" == "true" && -d "/opt/$DEPARTMENT_NAME" ]]; then
             sudo rm -rf "/opt/$DEPARTMENT_NAME"
-            print_success "Removed department directory: /opt/$DEPARTMENT_NAME"
+            print_success "Removed workspace directory: /opt/$DEPARTMENT_NAME"
         else
-            print_warning "Department directory not found"
+            print_warning "Workspace directory retained"
         fi
         
-        # Remove department group
-        if getent group "$DEPARTMENT_NAME-team" >/dev/null 2>&1; then
+        # Remove team group only if this tool created it
+        if [[ "$TEAM_GROUP_CREATED" == "true" ]] && getent group "$DEPARTMENT_NAME-team" >/dev/null 2>&1; then
             sudo groupdel "$DEPARTMENT_NAME-team"
-            print_success "Removed department group: $DEPARTMENT_NAME-team"
+            print_success "Removed team group: $DEPARTMENT_NAME-team"
         else
-            print_warning "Department group not found"
+            print_warning "Team group retained"
         fi
+    fi
+}
+
+remove_manifest() {
+    if [[ -n "$MANIFEST_FILE" && -f "$MANIFEST_FILE" ]]; then
+        sudo rm -f "$MANIFEST_FILE"
+        print_success "Removed install manifest: $MANIFEST_FILE"
     fi
 }
 
 remove_docker() {
-    echo -e "${BLUE}🐳 Removing Docker (optional)...${NC}"
-    
-    if [[ "$INSTALL_DOCKER" == "true" ]]; then
-        read -p "Do you want to remove Docker? (y/N): " remove_docker_choice
-        case $remove_docker_choice in
-            [Yy]|[Yy][Ee][Ss])
-                if command -v docker >/dev/null 2>&1; then
-                    # Stop Docker service
-                    sudo systemctl stop docker 2>/dev/null || true
-                    sudo systemctl disable docker 2>/dev/null || true
-                    
-                    # Remove Docker packages
-                    if [[ -f /etc/os-release ]]; then
-                        . /etc/os-release
-                        OS=$ID
-                        
-                        case $OS in
-                            ubuntu|debian)
-                                sudo apt remove -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-                                sudo apt autoremove -y
-                                ;;
-                            centos|rhel|rocky|almalinux)
-                                sudo yum remove -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-                                ;;
-                            fedora)
-                                sudo dnf remove -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-                                ;;
-                        esac
-                    fi
-                    
-                    # Remove Docker group
-                    if getent group docker >/dev/null 2>&1; then
-                        sudo groupdel docker 2>/dev/null || true
-                    fi
-                    
-                    print_success "Docker removed"
-                else
-                    print_warning "Docker not found"
-                fi
-                ;;
-            *)
-                print_warning "Docker removal skipped"
-                ;;
-        esac
-    fi
+    echo -e "${BLUE}🐳 Shared system packages${NC}"
+    echo "Docker and other machine-wide packages are not removed automatically."
+    echo "Review them manually if this machine is dedicated to this workspace."
 }
 
 remove_config() {
     echo -e "${BLUE}📋 Removing configuration files...${NC}"
-    
-    # Remove configuration file
-    if [[ -f "$HOME/.env-config.yaml" ]]; then
-        rm "$HOME/.env-config.yaml"
-        print_success "Removed configuration file"
-    else
-        print_warning "Configuration file not found"
+
+    if [[ -n "${LINUX_ENV_SETUP_CONFIG:-}" ]]; then
+        if [[ -f "$CONFIG_FILE" ]]; then
+            rm "$CONFIG_FILE"
+            print_success "Removed configuration file: $CONFIG_FILE"
+        else
+            print_warning "Configuration file not found"
+        fi
+        return 0
+    fi
+
+    local default_config
+    local legacy_config
+
+    default_config="$(default_config_file_path)"
+    legacy_config="$(legacy_config_file_path)"
+
+    if [[ -f "$default_config" ]]; then
+        rm "$default_config"
+        print_success "Removed configuration file: $default_config"
+    fi
+
+    if [[ -f "$legacy_config" ]]; then
+        rm "$legacy_config"
+        print_success "Removed legacy configuration file: $legacy_config"
     fi
 }
 
@@ -214,17 +254,13 @@ main() {
         exit 1
     fi
     
-    # Load configuration
-    if [[ -f "$HOME/.env-config.yaml" ]]; then
-        parse_config "$HOME/.env-config.yaml"
-    else
-        print_warning "Configuration file not found. Limited uninstall available."
-    fi
+    load_install_state
     
     confirm_uninstall
     
     remove_users
     remove_department
+    remove_manifest
     remove_docker
     remove_config
     clean_home_directories
