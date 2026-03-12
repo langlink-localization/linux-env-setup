@@ -14,6 +14,7 @@ It is designed for small teams, lab machines, and fresh Linux hosts where you wa
 - Zsh setup with Oh My Zsh, Powerlevel10k, and common aliases
 - Root-only storage for generated initial credentials
 - Manifest-based uninstall guardrails for managed users and workspace resources
+- Repeatable managed Zsh config updates without overwriting custom unmanaged `.zshrc` files
 
 ## Scope
 
@@ -153,6 +154,7 @@ make test
 - Newly created users are forced to change their password on first login when `chage` is available.
 - `show-passwords.sh` is intended to be run with `sudo` so the credentials file does not need to be group-readable.
 - Bootstrap will ask before replacing an existing `~/linux-env-setup` checkout.
+- Managed Zsh users get a `linux-env-setup`-owned `.zshrc`; existing custom `.zshrc` files are preserved instead of overwritten.
 
 ## Tailscale
 
@@ -198,6 +200,8 @@ This currently covers:
 - `bash -n` syntax checks for project shell scripts
 - config path resolution
 - parser compatibility for both `workspace_name` and legacy `department_name`
+- Tailscale repository URL helpers for Debian, Ubuntu, and Fedora
+- Zsh managed-config rendering and legacy/custom detection helpers
 
 ## License
 

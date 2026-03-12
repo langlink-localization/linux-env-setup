@@ -17,6 +17,18 @@ assert_eq() {
     fi
 }
 
+assert_contains() {
+    local haystack="$1"
+    local needle="$2"
+    local message="$3"
+
+    if [[ "$haystack" != *"$needle"* ]]; then
+        echo "Assertion failed: $message"
+        echo "Expected to find: $needle"
+        exit 1
+    fi
+}
+
 run_syntax_checks() {
     local file
     local -a shell_files=()
@@ -117,9 +129,75 @@ EOF
     rm -rf "$temp_root"
 }
 
+run_tailscale_helper_tests() {
+    source "$PROJECT_DIR/modules/install-tailscale.sh"
+
+    assert_eq "$(tailscale_apt_repo_family ubuntu)" "ubuntu" "Ubuntu should map to the Ubuntu repo family"
+    assert_eq "$(tailscale_apt_repo_family debian)" "debian" "Debian should map to the Debian repo family"
+    assert_eq "$(tailscale_apt_repo_url debian bookworm tailscale-keyring.list)" "https://pkgs.tailscale.com/stable/debian/bookworm.tailscale-keyring.list" "Debian repo URL should use the Debian path"
+    assert_eq "$(tailscale_apt_repo_url ubuntu noble noarmor.gpg)" "https://pkgs.tailscale.com/stable/ubuntu/noble.noarmor.gpg" "Ubuntu repo URL should use the Ubuntu path"
+    assert_eq "$(tailscale_rpm_repo_url fedora)" "https://pkgs.tailscale.com/stable/fedora/tailscale.repo" "Fedora should keep the Fedora repo URL"
+}
+
+run_zsh_helper_tests() {
+    local temp_root
+    local managed_file
+    local legacy_file
+    local custom_file
+    local rendered
+
+    temp_root="$(mktemp -d)"
+    managed_file="$temp_root/managed.zshrc"
+    legacy_file="$temp_root/legacy.zshrc"
+    custom_file="$temp_root/custom.zshrc"
+
+    source "$PROJECT_DIR/modules/install-zsh.sh"
+
+    INSTALL_TAILSCALE=true
+    rendered="$(render_managed_zshrc)"
+    assert_contains "$rendered" "$MANAGED_ZSHRC_MARKER" "Managed renderer should include the managed marker"
+    assert_contains "$rendered" 'alias ts="sudo tailscale"' "Managed renderer should include Tailscale aliases when enabled"
+
+    INSTALL_TAILSCALE=false
+    rendered="$(render_managed_zshrc)"
+    assert_contains "$rendered" "alias workspace='cd ~/workspace" "Managed renderer should include workspace aliases"
+
+    printf '%s\n' "$rendered" > "$managed_file"
+    cat > "$legacy_file" <<'EOF'
+# Enable Powerlevel10k instant prompt
+# Oh My Zsh configuration
+export ZSH="$HOME/.oh-my-zsh"
+# Git aliases
+alias gs='git status'
+alias workspace='cd ~/workspace 2>/dev/null || echo "Workspace not found"'
+newproject() {
+    echo "legacy"
+}
+EOF
+    cat > "$custom_file" <<'EOF'
+# my custom zshrc
+export PATH="$HOME/bin:$PATH"
+EOF
+
+    is_managed_zshrc "$managed_file"
+    is_legacy_generated_zshrc "$legacy_file"
+    if is_managed_zshrc "$custom_file"; then
+        echo "Assertion failed: custom zshrc should not be treated as managed"
+        exit 1
+    fi
+    if is_legacy_generated_zshrc "$custom_file"; then
+        echo "Assertion failed: custom zshrc should not be treated as legacy tool-generated"
+        exit 1
+    fi
+
+    rm -rf "$temp_root"
+}
+
 main() {
     run_syntax_checks
     run_config_smoke_tests
+    run_tailscale_helper_tests
+    run_zsh_helper_tests
     echo "Smoke tests passed"
 }
 

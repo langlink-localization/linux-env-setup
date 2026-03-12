@@ -35,6 +35,8 @@ print_error() {
     echo -e "${RED}❌ $1${NC}"
 }
 
+MANAGED_ZSHRC_MARKER="# linux-env-setup managed zsh config"
+
 check_config() {
     local config_file
     config_file="$(resolve_config_file_path)"
@@ -197,7 +199,11 @@ check_zsh_config() {
             
             # Check .zshrc
             if [[ -f "$user_home/.zshrc" ]]; then
-                echo "  ✓ .zshrc exists"
+                if grep -Fq "$MANAGED_ZSHRC_MARKER" "$user_home/.zshrc"; then
+                    echo "  ✓ Managed .zshrc present"
+                else
+                    echo "  ⚠ Custom .zshrc present (not managed by linux-env-setup)"
+                fi
             else
                 echo "  ✗ .zshrc missing"
             fi

@@ -28,6 +28,55 @@ print_error() {
     echo -e "${RED}❌ $1${NC}"
 }
 
+download_to_root_file() {
+    local url="$1"
+    local destination="$2"
+    local mode="${3:-0644}"
+    local temp_file
+
+    temp_file="$(mktemp)"
+    curl -fsSL "$url" -o "$temp_file"
+    sudo install -D -m "$mode" "$temp_file" "$destination"
+    rm -f "$temp_file"
+}
+
+tailscale_apt_repo_family() {
+    local os_id="$1"
+
+    case "$os_id" in
+        ubuntu|debian)
+            printf '%s\n' "$os_id"
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+tailscale_apt_repo_url() {
+    local family="$1"
+    local codename="$2"
+    local artifact="$3"
+
+    printf 'https://pkgs.tailscale.com/stable/%s/%s.%s\n' "$family" "$codename" "$artifact"
+}
+
+tailscale_rpm_repo_url() {
+    local os_id="$1"
+
+    case "$os_id" in
+        centos|rhel|rocky|almalinux)
+            printf '%s\n' 'https://pkgs.tailscale.com/stable/centos/7/tailscale.repo'
+            ;;
+        fedora)
+            printf '%s\n' 'https://pkgs.tailscale.com/stable/fedora/tailscale.repo'
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
 # Detect OS
 detect_os() {
     if [[ -f /etc/os-release ]]; then
@@ -56,26 +105,33 @@ install_tailscale() {
     
     case $OS in
         ubuntu|debian)
-            # Add Tailscale's package signing key and repository
-            curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/$(lsb_release -cs).noarmor.gpg | sudo tee /usr/share/keyrings/tailscale-archive-keyring.gpg >/dev/null
-            curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/$(lsb_release -cs).tailscale-keyring.list | sudo tee /etc/apt/sources.list.d/tailscale.list
-            
-            # Install Tailscale
-            sudo apt update
-            sudo apt install -y tailscale
+            local family
+            local codename
+
+            family="$(tailscale_apt_repo_family "$OS")"
+            codename="$(lsb_release -cs)"
+
+            sudo mkdir -p --mode=0755 /usr/share/keyrings
+            download_to_root_file \
+                "$(tailscale_apt_repo_url "$family" "$codename" "noarmor.gpg")" \
+                "/usr/share/keyrings/tailscale-archive-keyring.gpg"
+            download_to_root_file \
+                "$(tailscale_apt_repo_url "$family" "$codename" "tailscale-keyring.list")" \
+                "/etc/apt/sources.list.d/tailscale.list"
+
+            sudo apt-get update
+            sudo apt-get install -y tailscale
             ;;
         centos|rhel|rocky|almalinux)
-            # Add Tailscale repository
-            curl -fsSL https://pkgs.tailscale.com/stable/centos/7/tailscale.repo | sudo tee /etc/yum.repos.d/tailscale.repo
-            
-            # Install Tailscale
+            download_to_root_file \
+                "$(tailscale_rpm_repo_url "$OS")" \
+                "/etc/yum.repos.d/tailscale.repo"
             sudo yum install -y tailscale
             ;;
         fedora)
-            # Add Tailscale repository
-            curl -fsSL https://pkgs.tailscale.com/stable/fedora/tailscale.repo | sudo tee /etc/yum.repos.d/tailscale.repo
-            
-            # Install Tailscale
+            download_to_root_file \
+                "$(tailscale_rpm_repo_url "$OS")" \
+                "/etc/yum.repos.d/tailscale.repo"
             sudo dnf install -y tailscale
             ;;
         *)
@@ -153,15 +209,7 @@ alias tsdown="sudo tailscale down"
     for user in "${USERS[@]}"; do
         local user_home="/home/$user"
         
-        # Add to .zshrc if user has zsh
-        if user_has_zsh "$user" && [[ -f "$user_home/.zshrc" ]]; then
-            if ! grep -q "# Tailscale aliases" "$user_home/.zshrc"; then
-                echo "$aliases" | sudo tee -a "$user_home/.zshrc" >/dev/null
-                print_success "Added Tailscale aliases to $user's .zshrc"
-            fi
-        fi
-        
-        # Add to .bashrc
+        # Add to .bashrc for non-Zsh users or users keeping a custom .zshrc.
         if [[ -f "$user_home/.bashrc" ]]; then
             if ! grep -q "# Tailscale aliases" "$user_home/.bashrc"; then
                 echo "$aliases" | sudo tee -a "$user_home/.bashrc" >/dev/null
