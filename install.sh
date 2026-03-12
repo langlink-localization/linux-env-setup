@@ -3,7 +3,7 @@
 # Linux Environment Installation Script
 # This script installs the environment based on the configuration
 
-set -e
+set -eo pipefail
 
 # Color definitions
 RED='\033[0;31m'
@@ -12,8 +12,9 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-CONFIG_FILE="$HOME/.env-config.yaml"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/config_parser.sh"
+CONFIG_FILE="$(resolve_config_file_path)"
 
 print_header() {
     echo -e "${BLUE}================================================${NC}"
@@ -34,29 +35,6 @@ print_error() {
     echo -e "${RED}❌ $1${NC}"
 }
 
-# Function to parse YAML configuration
-parse_yaml() {
-    local file="$1"
-    local prefix="$2"
-    
-    # Simple YAML parser for our specific format
-    while IFS= read -r line; do
-        # Skip comments and empty lines
-        [[ "$line" =~ ^[[:space:]]*# ]] && continue
-        [[ "$line" =~ ^[[:space:]]*$ ]] && continue
-        
-        # Parse key-value pairs
-        if [[ "$line" =~ ^[[:space:]]*([^:]+):[[:space:]]*(.*)$ ]]; then
-            key="${BASH_REMATCH[1]// /}"
-            value="${BASH_REMATCH[2]}"
-            value="${value//\"/}"  # Remove quotes
-            
-            # Create environment variable
-            declare -g "${prefix}${key}"="$value"
-        fi
-    done < "$file"
-}
-
 # Function to load configuration
 load_config() {
     if [[ ! -f "$CONFIG_FILE" ]]; then
@@ -68,7 +46,6 @@ load_config() {
     echo -e "${BLUE}📖 Loading configuration...${NC}"
     
     # Load configuration into variables
-    source "$SCRIPT_DIR/lib/config_parser.sh"
     parse_config "$CONFIG_FILE"
     
     print_success "Configuration loaded"
@@ -136,9 +113,10 @@ display_completion_message() {
     echo -e "${BLUE}================================================${NC}"
     echo
     echo "What was installed:"
-    echo "• Department directory structure"
+    echo "• Shared workspace directory structure"
     echo "• User accounts with configured shells"
-    echo "• Development tools (Node.js, Python, Docker)"
+    echo "• Operator-scoped toolchains (Node.js and Python, if selected)"
+    echo "• Shared services (Docker, if selected)"
     echo "• Tailscale VPN (if selected)"
     echo "• Zsh with Oh My Zsh and Powerlevel10k"
     echo "• Useful aliases and functions"
@@ -153,7 +131,7 @@ display_completion_message() {
     echo "5. If Tailscale was installed, run 'sudo tailscale up' to connect"
     echo
     echo -e "${BLUE}Quick commands to try:${NC}"
-    echo "• workspace    - Go to department workspace"
+    echo "• workspace    - Go to workspace root"
     echo "• projects     - Go to projects directory"
     echo "• newproject <name> - Create a new project"
     echo "• gs           - Git status"

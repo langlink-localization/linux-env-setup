@@ -1,6 +1,6 @@
 # Linux Environment Setup Makefile
 
-.PHONY: help setup install status uninstall clean test
+.PHONY: help setup install status passwords uninstall clean test bootstrap executable
 
 # Default target
 help:
@@ -12,7 +12,7 @@ help:
 	@echo "  make passwords  - Show user passwords"
 	@echo "  make uninstall  - Remove the installation"
 	@echo "  make clean      - Remove configuration files"
-	@echo "  make test       - Run basic tests"
+	@echo "  make test       - Run smoke tests"
 	@echo "  make all        - Setup and install in one command"
 	@echo ""
 	@echo "Bootstrap commands (run as root):"
@@ -54,20 +54,17 @@ uninstall:
 # Clean configuration
 clean:
 	@echo "Cleaning configuration files..."
-	@rm -f ~/.env-config.yaml
+	@rm -f ~/.linux-env-setup.yaml ~/.env-config.yaml
 	@echo "Configuration files removed"
 
 # Test installation
 test:
-	@echo "Running basic tests..."
+	@echo "Running smoke tests..."
 	@chmod +x lib/config_parser.sh
+	@chmod +x lib/runtime.sh
 	@chmod +x modules/*.sh
-	@echo "Scripts are executable"
-	@if [ -f ~/.env-config.yaml ]; then \
-		echo "✅ Configuration file exists"; \
-	else \
-		echo "❌ Configuration file missing - run 'make setup' first"; \
-	fi
+	@chmod +x tests/smoke.sh
+	@./tests/smoke.sh
 
 # Setup and install in one command
 all: setup install

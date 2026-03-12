@@ -3,7 +3,7 @@
 # Bootstrap script for new servers (run as root)
 # This script creates an admin user and prepares the system for setup
 
-set -e
+set -eo pipefail
 
 # Color definitions
 RED='\033[0;31m'
@@ -29,6 +29,33 @@ print_warning() {
 
 print_error() {
     echo -e "${RED}❌ $1${NC}"
+}
+
+repo_url_from_script_source() {
+    local script_source="${1:-}"
+    local script_dir
+
+    if [[ -z "$script_source" || "$script_source" != */* || ! -f "$script_source" ]]; then
+        return 1
+    fi
+
+    script_dir="$(cd "$(dirname "$script_source")" && pwd)"
+
+    git -C "$script_dir" rev-parse --is-inside-work-tree >/dev/null 2>&1 || return 1
+    git -C "$script_dir" config --get remote.origin.url >/dev/null 2>&1 || return 1
+    git -C "$script_dir" config --get remote.origin.url
+}
+
+resolve_repo_url() {
+    local repo_url
+
+    if [[ -n "${LINUX_ENV_SETUP_REPO_URL:-}" ]]; then
+        printf '%s\n' "$LINUX_ENV_SETUP_REPO_URL"
+    elif repo_url="$(repo_url_from_script_source "${BASH_SOURCE[0]:-}")"; then
+        printf '%s\n' "$repo_url"
+    else
+        printf '%s\n' "https://github.com/langlink-localization/linux-env-setup.git"
+    fi
 }
 
 check_root() {
@@ -73,6 +100,7 @@ install_base_packages() {
 create_admin_user() {
     local username="${1:-devuser}"
     local password="${2:-$(openssl rand -base64 12)}"
+    local password_set=false
     
     echo -e "${BLUE}👤 Creating admin user: $username...${NC}" >&2
     
@@ -93,30 +121,31 @@ create_admin_user() {
         # Create user
         useradd -m -s /bin/bash "$username"
         echo "$username:$password" | chpasswd
+        password_set=true
         echo -e "${GREEN}✅ User $username created${NC}" >&2
     fi
     
-    # Add to sudo group
+    # Add to an administrative group, but do not create passwordless sudo defaults.
     if command -v usermod >/dev/null 2>&1; then
-        usermod -aG sudo "$username" 2>/dev/null || usermod -aG wheel "$username" 2>/dev/null || true
+        if getent group sudo >/dev/null 2>&1; then
+            usermod -aG sudo "$username"
+        elif getent group wheel >/dev/null 2>&1; then
+            usermod -aG wheel "$username"
+        else
+            print_warning "No sudo or wheel group found. Verify administrative access manually." >&2
+        fi
     fi
     
-    # Ensure sudo access
-    if [[ ! -f "/etc/sudoers.d/$username" ]]; then
-        echo "$username ALL=(ALL) NOPASSWD:ALL" > "/etc/sudoers.d/$username"
-        chmod 440 "/etc/sudoers.d/$username"
-    fi
+    echo -e "${GREEN}✅ Admin user added to an administrative group${NC}" >&2
     
-    echo -e "${GREEN}✅ Admin user configured with sudo access${NC}" >&2
-    
-    # Show password if generated
-    if [[ -z "$2" ]]; then
+    # Show password only when a new password was actually set.
+    if [[ "$password_set" == true && -z "${2:-}" ]]; then
         echo -e "${YELLOW}Generated password for $username: $password${NC}" >&2
         echo -e "${YELLOW}Please save this password securely!${NC}" >&2
     fi
     
-    # Output only the credentials to stdout for capture
-    echo "$username:$password"
+    # Output only the username to stdout for capture.
+    echo "$username"
 }
 
 setup_ssh_access() {
@@ -141,16 +170,31 @@ download_project() {
     local username="$1"
     local admin_home="/home/$username"
     local project_dir="$admin_home/linux-env-setup"
+    local repo_url
+    local quoted_repo_url
     
     echo -e "${BLUE}📥 Downloading project...${NC}"
+
+    repo_url="$(resolve_repo_url)"
+    printf -v quoted_repo_url '%q' "$repo_url"
     
-    # Remove existing directory if present
+    # Confirm before replacing an existing checkout.
     if [[ -d "$project_dir" ]]; then
-        rm -rf "$project_dir"
+        print_warning "Existing project directory found at $project_dir"
+        read -p "Replace it with a fresh clone? (y/N): " replace_choice
+        case $replace_choice in
+            [Yy]|[Yy][Ee][Ss])
+                rm -rf "$project_dir"
+                ;;
+            *)
+                print_warning "Keeping existing project directory"
+                return 0
+                ;;
+        esac
     fi
     
     # Download project
-    su - "$username" -c "cd && git clone https://github.com/langlink-localization/linux-env-setup.git"
+    su - "$username" -c "cd && git clone $quoted_repo_url"
     
     # Make scripts executable
     chmod +x "$project_dir"/*.sh
@@ -186,16 +230,15 @@ display_completion_message() {
 
 main() {
     local username="${1:-devuser}"
-    local password="$2"
-    
+    local password="${2:-}"
+
     print_header
-    
+
     check_root
     install_base_packages
-    
-    # Create admin user and capture credentials
-    user_credentials=$(create_admin_user "$username" "$password")
-    username=$(echo "$user_credentials" | cut -d: -f1)
+
+    # Create admin user and capture the resulting username.
+    username=$(create_admin_user "$username" "$password")
     
     setup_ssh_access "$username"
     download_project "$username"

@@ -1,242 +1,208 @@
 # Linux Environment Setup
 
-A modern, script-based Linux development environment setup tool that allows you to customize department structures, user accounts, and system configurations through an interactive interface.
+`linux-env-setup` bootstraps a shared Linux development workspace on a dedicated machine. It creates a team workspace under `/opt/<workspace-name>`, provisions user accounts, and optionally installs Docker, Tailscale, Zsh, Node.js, and Python through an interactive shell-based workflow.
 
-## 🌟 Features
+It is designed for small teams, lab machines, and fresh Linux hosts where you want one repeatable setup flow without introducing a heavier configuration-management stack.
 
-- **Interactive Setup**: Configure everything through a user-friendly Q&A interface
-- **Script-Based**: Pure shell scripts without complex templating engines
-- **Custom Department Structure**: Create your own department name and directory structure
-- **Flexible User Management**: Add multiple users with individual configurations
-- **Shell Selection**: Choose which users get Zsh with Oh My Zsh and Powerlevel10k
-- **Docker Integration**: Selectively add users to Docker group
-- **Tailscale VPN**: Optional zero-config VPN for secure remote access
-- **Global Tools**: Install Node.js and Python globally for all users
-- **Secure Setup**: Generate secure passwords and proper permissions
-- **Cross-Platform**: Supports Ubuntu, Debian, CentOS, RHEL, Fedora, and derivatives
+## Features
 
-## 🚀 Quick Start
+- Interactive setup for workspace name, users, shells, and optional services
+- Shared workspace layout under `/opt/<workspace-name>`
+- User creation with per-user shell preferences and Docker group membership
+- Optional Docker and Tailscale installation
+- Optional Node.js and Python toolchains for the operator account running `./install.sh`
+- Zsh setup with Oh My Zsh, Powerlevel10k, and common aliases
+- Root-only storage for generated initial credentials
+- Manifest-based uninstall guardrails for managed users and workspace resources
+- Repeatable managed Zsh config updates without overwriting custom unmanaged `.zshrc` files
 
-### Method 1: New Server (Root Access) - Recommended
+## Scope
+
+This project is a good fit when you want to prepare:
+
+- a new Linux development server
+- a shared team workstation
+- a sandbox or lab machine with multiple named users
+
+It is not a full replacement for Ansible, Puppet, or host fleet management.
+
+## Quick Start
+
+### Recommended: clone, review, then run
 
 ```bash
-# One-click deployment with default settings
-curl -fsSL https://raw.githubusercontent.com/langlink-localization/linux-env-setup/master/bootstrap.sh | bash
-
-# With custom username and password
-curl -fsSL https://raw.githubusercontent.com/langlink-localization/linux-env-setup/master/bootstrap.sh | bash -s -- myuser mypassword
-```
-
-### Method 2: Existing User Setup
-
-```bash
-# Clone the repository
 git clone https://github.com/langlink-localization/linux-env-setup.git
 cd linux-env-setup
 
-# Run interactive setup
 ./setup.sh
-
-# Install the environment
 ./install.sh
 ```
 
-### Method 3: Manual Steps
+### New server bootstrap
+
+Use bootstrap when you start from a fresh host and have root access. It creates an admin user, enables SSH, and clones the repository for that user.
 
 ```bash
-# 1. Clone repository
-git clone https://github.com/langlink-localization/linux-env-setup.git
-cd linux-env-setup
-
-# 2. Run setup
-chmod +x setup.sh
-./setup.sh
-
-# 3. Install environment
-chmod +x install.sh
-./install.sh
+curl -fsSL https://raw.githubusercontent.com/langlink-localization/linux-env-setup/master/bootstrap.sh | sudo bash
 ```
 
-## 📖 What Gets Installed
+With a custom username:
 
-### For All Users
-- **Base Tools**: curl, wget, git, vim, build tools
-- **Fonts**: Hack Nerd Font for terminal icons
-- **Node.js**: Latest LTS version (if selected)
-- **Python**: Latest stable version (if selected)
-- **Docker**: Latest stable version (if selected)
-- **Tailscale**: Zero-config VPN (if selected)
-
-### For Zsh Users
-- **Oh My Zsh**: Popular Zsh framework
-- **Powerlevel10k**: Beautiful and fast prompt
-- **Plugins**: autosuggestions, syntax highlighting, completions
-- **Aliases**: Git, Docker, Tailscale, and system shortcuts
-- **Functions**: Project management utilities
-
-### Directory Structure
-```
-/opt/your-department-name/
-├── projects/          # Development projects
-├── shared/           # Shared resources
-├── docs/             # Documentation
-├── scripts/          # Utility scripts
-├── archives/         # Archive storage
-├── department-info.txt    # Setup information
-└── user-passwords.txt     # Initial passwords (secure)
+```bash
+curl -fsSL https://raw.githubusercontent.com/langlink-localization/linux-env-setup/master/bootstrap.sh | sudo bash -s -- devadmin
 ```
 
-## 🔧 Configuration
+To bootstrap from a fork or another mirror, override the clone URL:
 
-The setup creates a YAML configuration file that drives all installations:
+```bash
+curl -fsSL https://raw.githubusercontent.com/langlink-localization/linux-env-setup/master/bootstrap.sh | \
+  sudo env LINUX_ENV_SETUP_REPO_URL=https://github.com/<owner>/<repo>.git bash
+```
+
+## Configuration
+
+The preferred config file is:
+
+```text
+~/.linux-env-setup.yaml
+```
+
+Legacy configs at `~/.env-config.yaml` are still read for backward compatibility. You can also override the path explicitly:
+
+```bash
+LINUX_ENV_SETUP_CONFIG=/path/to/custom-config.yaml ./install.sh
+```
+
+Example config:
 
 ```yaml
-department_name: "tech-department"
+workspace_name: "eng-team"
 users:
   - name: "alice"
     zsh: true
     docker: true
   - name: "bob"
     zsh: false
-    docker: true
+    docker: false
 system:
   install_node: true
   install_python: true
   install_docker: true
-  install_tailscale: true
+  install_tailscale: false
 ```
 
-## 🛠️ Available Commands
+## What Gets Installed
+
+### Shared machine setup
+
+- base packages such as `curl`, `wget`, `git`, `vim`, and build tools
+- Docker, if selected
+- Tailscale, if selected
+- a shared workspace under `/opt/<workspace-name>`
+
+### Managed user setup
+
+- user accounts
+- optional Zsh configuration
+- optional Docker group membership
+- `~/workspace` symlink to the shared workspace
+
+### Operator account setup
+
+The user running `./install.sh` can also install optional personal toolchains:
+
+- Node.js via `nvm`
+- Python via `pyenv`
+- Hack Nerd Font in `~/.local/share/fonts`
+
+These are user-scoped installs, not machine-wide package-manager installs.
+
+## Workspace Layout
+
+```text
+/opt/<workspace-name>/
+├── projects/
+├── shared/
+├── docs/
+├── scripts/
+├── archives/
+├── workspace-info.txt
+└── user-passwords.txt
+```
+
+## Commands
 
 ```bash
-# Main commands
-./setup.sh         # Run interactive setup
-./install.sh       # Install environment
-./status.sh        # Check installation status
-./show-passwords.sh # Show user passwords
-./uninstall.sh     # Remove installation
+./setup.sh
+./install.sh
+./status.sh
+sudo ./show-passwords.sh
+./uninstall.sh
 
-# Or use make commands
-make setup         # Run interactive setup
-make install       # Install environment
-make status        # Check installation status
-make passwords     # Show user passwords
-make uninstall     # Remove installation
-
-# User shortcuts (after installation)
-workspace          # Go to department workspace
-projects           # Go to projects directory
-newproject <name>  # Create new project
-gs                 # Git status
-dps                # Docker ps
-ts                 # Tailscale command (if installed)
-tsstatus           # Tailscale status (if installed)
-```
-
-## 🔒 Security Features
-
-- **Secure Password Generation**: Random 16-character passwords
-- **Proper Permissions**: Restricted access to sensitive files
-- **Group-based Access**: Department team groups
-- **Password Storage**: Secure location with limited access
-
-## 🔑 Password Management
-
-### Viewing User Passwords
-
-After installation, user passwords are stored securely in:
-```
-/opt/your-department-name/user-passwords.txt
-```
-
-**Method 1: Using the script**
-```bash
-./show-passwords.sh
-# or
+make setup
+make install
+make status
 make passwords
+make uninstall
+make test
 ```
 
-**Method 2: Direct file access**
-```bash
-sudo cat /opt/your-department-name/user-passwords.txt
-```
+## Security Notes
 
-### Changing Passwords
+- Bootstrap adds the created admin user to `sudo` or `wheel`; it does not grant passwordless sudo by default.
+- Generated user credentials are stored in `/opt/<workspace-name>/user-passwords.txt` with root-only permissions.
+- Newly created users are forced to change their password on first login when `chage` is available.
+- `show-passwords.sh` is intended to be run with `sudo` so the credentials file does not need to be group-readable.
+- Bootstrap will ask before replacing an existing `~/linux-env-setup` checkout.
+- Managed Zsh users get a `linux-env-setup`-owned `.zshrc`; any existing unmanaged `.zshrc` is preserved instead of overwritten.
 
-**Change your own password:**
-```bash
-passwd
-```
+## Tailscale
 
-**Change another user's password (requires sudo):**
-```bash
-sudo passwd username
-```
+If Tailscale is installed, authenticate after installation:
 
-### Security Recommendations
-
-1. **Change default passwords immediately** after first login
-2. Use strong, unique passwords for each account
-3. Consider using SSH keys instead of passwords
-4. Remove or secure the password file after initial setup:
-   ```bash
-   sudo rm /opt/your-department-name/user-passwords.txt
-   ```
-
-## 🔗 Tailscale VPN Integration
-
-### What is Tailscale?
-Tailscale is a zero-config VPN that creates a secure network between your devices using WireGuard technology. It's perfect for:
-- Remote access to your servers
-- Secure team collaboration
-- Accessing development environments from anywhere
-
-### Setup After Installation
-
-**1. Connect to your Tailscale network:**
 ```bash
 sudo tailscale up
 ```
 
-**2. (Optional) Enable SSH access via Tailscale:**
-```bash
-sudo tailscale up --ssh
-```
-
-**3. (Optional) Enable subnet routes:**
-```bash
-sudo tailscale up --advertise-routes=192.168.1.0/24
-```
-
-### Useful Tailscale Commands
-
-The installation adds convenient aliases for all users:
+Useful aliases added for managed users:
 
 ```bash
-ts              # Tailscale command (sudo tailscale)
-tsstatus        # Check Tailscale status
-tsip            # Get your Tailscale IP
-tsping <device> # Ping another device on your network
-tsup            # Connect to Tailscale
-tsdown          # Disconnect from Tailscale
+ts
+tsstatus
+tsip
+tsping <device>
+tsup
+tsdown
 ```
 
-### Getting Started with Tailscale
+## Uninstall Behavior
 
-1. **Create a Tailscale account** at https://tailscale.com/
-2. **Run the connection command**: `sudo tailscale up`
-3. **Authenticate in your browser** when prompted
-4. **Check your status**: `tsstatus`
-5. **Get your IP**: `tsip`
+`./uninstall.sh` only removes resources recorded in the install manifest when available:
 
-### Benefits for Development Teams
+- users created by this tool
+- workspace directory created by this tool
+- team group created by this tool
+- local config files
+- optional operator-local `nvm` and `pyenv` directories
 
-- **Secure access** to development servers from anywhere
-- **No port forwarding** or complex firewall rules needed
-- **Access control** through the Tailscale admin panel
-- **Automatic encryption** of all traffic
-- **Works across different networks** (home, office, mobile)
+Machine-wide packages such as Docker are left in place for manual review.
 
-## 📄 License
+## Validation
 
-MIT License
+Run the local smoke checks before publishing changes:
+
+```bash
+make test
+```
+
+This currently covers:
+
+- `bash -n` syntax checks for project shell scripts
+- config path resolution
+- parser compatibility for both `workspace_name` and legacy `department_name`
+- Tailscale repository URL helpers for Debian, Ubuntu, and Fedora
+- Zsh managed-config rendering and legacy/custom detection helpers
+
+## License
+
+MIT
