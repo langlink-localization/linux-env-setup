@@ -29,7 +29,6 @@ print_error() {
 }
 
 MANAGED_ZSHRC_MARKER="# linux-env-setup managed zsh config"
-LEGACY_ZSHRC_BACKUP_SUFFIX=".linux-env-setup.legacy.bak"
 
 tailscale_alias_block() {
     if [[ "$INSTALL_TAILSCALE" != "true" ]]; then
@@ -54,27 +53,10 @@ is_managed_zshrc() {
     [[ -f "$file" ]] && grep -Fq "$MANAGED_ZSHRC_MARKER" "$file"
 }
 
-is_legacy_generated_zshrc() {
+should_write_managed_zshrc() {
     local file="$1"
 
-    [[ -f "$file" ]] || return 1
-
-    grep -Fq "# Oh My Zsh configuration" "$file" &&
-    grep -Fq "# Git aliases" "$file" &&
-    grep -Fq "alias workspace='cd ~/workspace" "$file" &&
-    grep -Fq "newproject() {" "$file"
-}
-
-backup_legacy_zshrc() {
-    local user="$1"
-    local zshrc_file="$2"
-    local backup_file="${zshrc_file}${LEGACY_ZSHRC_BACKUP_SUFFIX}"
-
-    if [[ ! -f "$backup_file" ]]; then
-        sudo cp "$zshrc_file" "$backup_file"
-        sudo chown "$user:$user" "$backup_file"
-        print_warning "Backed up legacy generated .zshrc to $backup_file"
-    fi
+    [[ ! -f "$file" ]] || is_managed_zshrc "$file"
 }
 
 render_managed_zshrc() {
@@ -193,6 +175,7 @@ configure_zsh_for_user() {
     local user="$1"
     local user_home="/home/$user"
     local zshrc_file="$user_home/.zshrc"
+    local zshrc_preexisting=false
 
     echo -e "${BLUE}🐚 Configuring Zsh for $user...${NC}"
 
@@ -200,6 +183,10 @@ configure_zsh_for_user() {
     if ! id "$user" &>/dev/null; then
         print_warning "User $user does not exist, skipping"
         return 0
+    fi
+
+    if [[ -f "$zshrc_file" ]]; then
+        zshrc_preexisting=true
     fi
 
     if [[ "$(getent passwd "$user" | cut -d: -f7)" != "/bin/zsh" ]]; then
@@ -214,7 +201,7 @@ configure_zsh_for_user() {
     else
         print_warning "Oh My Zsh already installed for $user"
     fi
-    
+
     # Install Powerlevel10k theme
     if [[ ! -d "$user_home/.oh-my-zsh/custom/themes/powerlevel10k" ]]; then
         sudo -u "$user" bash -c "cd '$user_home' && git clone --depth=1 https://github.com/romkatv/powerlevel10k.git '$user_home/.oh-my-zsh/custom/themes/powerlevel10k'"
@@ -236,13 +223,9 @@ configure_zsh_for_user() {
         print_success "zsh-syntax-highlighting installed for $user"
     fi
 
-    if [[ -f "$zshrc_file" ]] && ! is_managed_zshrc "$zshrc_file"; then
-        if is_legacy_generated_zshrc "$zshrc_file"; then
-            backup_legacy_zshrc "$user" "$zshrc_file"
-        else
-            print_warning "Custom .zshrc detected for $user; leaving it unchanged"
-            return 0
-        fi
+    if [[ "$zshrc_preexisting" == true ]] && ! should_write_managed_zshrc "$zshrc_file"; then
+        print_warning "Existing unmanaged .zshrc detected for $user; leaving it unchanged"
+        return 0
     fi
 
     write_managed_zshrc "$user"

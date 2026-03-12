@@ -154,7 +154,7 @@ make test
 - Newly created users are forced to change their password on first login when `chage` is available.
 - `show-passwords.sh` is intended to be run with `sudo` so the credentials file does not need to be group-readable.
 - Bootstrap will ask before replacing an existing `~/linux-env-setup` checkout.
-- Managed Zsh users get a `linux-env-setup`-owned `.zshrc`; existing custom `.zshrc` files are preserved instead of overwritten.
+- Managed Zsh users get a `linux-env-setup`-owned `.zshrc`; any existing unmanaged `.zshrc` is preserved instead of overwritten.
 
 ## Tailscale
 

@@ -31,15 +31,28 @@ print_error() {
     echo -e "${RED}❌ $1${NC}"
 }
 
-resolve_repo_url() {
+repo_url_from_script_source() {
+    local script_source="${1:-}"
     local script_dir
 
-    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    if [[ -z "$script_source" || "$script_source" != */* || ! -f "$script_source" ]]; then
+        return 1
+    fi
+
+    script_dir="$(cd "$(dirname "$script_source")" && pwd)"
+
+    git -C "$script_dir" rev-parse --is-inside-work-tree >/dev/null 2>&1 || return 1
+    git -C "$script_dir" config --get remote.origin.url >/dev/null 2>&1 || return 1
+    git -C "$script_dir" config --get remote.origin.url
+}
+
+resolve_repo_url() {
+    local repo_url
 
     if [[ -n "${LINUX_ENV_SETUP_REPO_URL:-}" ]]; then
         printf '%s\n' "$LINUX_ENV_SETUP_REPO_URL"
-    elif git -C "$script_dir" config --get remote.origin.url >/dev/null 2>&1; then
-        git -C "$script_dir" config --get remote.origin.url
+    elif repo_url="$(repo_url_from_script_source "${BASH_SOURCE[0]:-}")"; then
+        printf '%s\n' "$repo_url"
     else
         printf '%s\n' "https://github.com/langlink-localization/linux-env-setup.git"
     fi

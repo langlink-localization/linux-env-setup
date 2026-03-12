@@ -202,7 +202,7 @@ check_zsh_config() {
                 if grep -Fq "$MANAGED_ZSHRC_MARKER" "$user_home/.zshrc"; then
                     echo "  ✓ Managed .zshrc present"
                 else
-                    echo "  ⚠ Custom .zshrc present (not managed by linux-env-setup)"
+                    echo "  ⚠ Existing unmanaged .zshrc present"
                 fi
             else
                 echo "  ✗ .zshrc missing"

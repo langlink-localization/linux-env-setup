@@ -142,13 +142,13 @@ run_tailscale_helper_tests() {
 run_zsh_helper_tests() {
     local temp_root
     local managed_file
-    local legacy_file
+    local unmanaged_file
     local custom_file
     local rendered
 
     temp_root="$(mktemp -d)"
     managed_file="$temp_root/managed.zshrc"
-    legacy_file="$temp_root/legacy.zshrc"
+    unmanaged_file="$temp_root/unmanaged.zshrc"
     custom_file="$temp_root/custom.zshrc"
 
     source "$PROJECT_DIR/modules/install-zsh.sh"
@@ -163,7 +163,7 @@ run_zsh_helper_tests() {
     assert_contains "$rendered" "alias workspace='cd ~/workspace" "Managed renderer should include workspace aliases"
 
     printf '%s\n' "$rendered" > "$managed_file"
-    cat > "$legacy_file" <<'EOF'
+    cat > "$unmanaged_file" <<'EOF'
 # Enable Powerlevel10k instant prompt
 # Oh My Zsh configuration
 export ZSH="$HOME/.oh-my-zsh"
@@ -179,16 +179,59 @@ EOF
 export PATH="$HOME/bin:$PATH"
 EOF
 
-    is_managed_zshrc "$managed_file"
-    is_legacy_generated_zshrc "$legacy_file"
-    if is_managed_zshrc "$custom_file"; then
-        echo "Assertion failed: custom zshrc should not be treated as managed"
+    if ! should_write_managed_zshrc "$managed_file"; then
+        echo "Assertion failed: managed zshrc should remain writable by the tool"
         exit 1
     fi
-    if is_legacy_generated_zshrc "$custom_file"; then
-        echo "Assertion failed: custom zshrc should not be treated as legacy tool-generated"
+    if should_write_managed_zshrc "$unmanaged_file"; then
+        echo "Assertion failed: unmanaged near-match zshrc should be preserved"
         exit 1
     fi
+    if should_write_managed_zshrc "$custom_file"; then
+        echo "Assertion failed: custom zshrc should be preserved"
+        exit 1
+    fi
+
+    rm -rf "$temp_root"
+}
+
+run_bootstrap_helper_tests() {
+    local temp_root
+    local fake_script
+    local resolved
+
+    temp_root="$(mktemp -d)"
+    fake_script="$temp_root/bootstrap.sh"
+
+    cp "$PROJECT_DIR/bootstrap.sh" "$fake_script"
+    chmod +x "$fake_script"
+
+    (
+        cd "$temp_root"
+        git init -q
+        git remote add origin https://example.com/unrelated/repo.git
+        source "$fake_script"
+        assert_eq "$(repo_url_from_script_source "$fake_script")" "https://example.com/unrelated/repo.git" "Local checkout should honor its own origin URL"
+    )
+
+    (
+        cd "$temp_root"
+        source "$fake_script"
+        if repo_url_from_script_source "main" >/dev/null 2>&1; then
+            echo "Assertion failed: bare script names must not trust a local git remote"
+            exit 1
+        fi
+        if repo_url_from_script_source "stdin" >/dev/null 2>&1; then
+            echo "Assertion failed: non-file script sources must not trust a local git remote"
+            exit 1
+        fi
+        if repo_url_from_script_source "" >/dev/null 2>&1; then
+            echo "Assertion failed: empty script sources must not trust a local git remote"
+            exit 1
+        fi
+        resolved="$(bash -lc "source /dev/stdin <<< \"\$(cat '$fake_script')\"; resolve_repo_url")"
+        assert_eq "$resolved" "https://github.com/langlink-localization/linux-env-setup.git" "stdin-like execution should fall back to the canonical repo URL"
+    )
 
     rm -rf "$temp_root"
 }
@@ -198,6 +241,7 @@ main() {
     run_config_smoke_tests
     run_tailscale_helper_tests
     run_zsh_helper_tests
+    run_bootstrap_helper_tests
     echo "Smoke tests passed"
 }
 
